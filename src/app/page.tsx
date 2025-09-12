@@ -9,7 +9,11 @@ export default function Home() {
   const [result, setResults] = useState<object>();
 
   async function handleOnClick() {
-    setResults({ status: 'Not yet implemented.' })
+    const results = await fetch('/api/scraper', {
+      method: 'POST',
+      body: JSON.stringify({})
+    }).then(r => r.json())
+    setResults(results)
   }
 
   return (

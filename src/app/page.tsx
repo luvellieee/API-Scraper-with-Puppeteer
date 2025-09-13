@@ -33,7 +33,7 @@ export default function Home() {
     <main className="hero bg-base-200 min-h-screen">
       <div className="hero-content text-center">
         <div className="max-w-xl">
-          <h1 className="text-5xl font-bold mb-8">Doctor Scraper</h1>
+          <h1 className="text-5xl font-bold mb-8">Scraper</h1>
 
           <input
             type="text"

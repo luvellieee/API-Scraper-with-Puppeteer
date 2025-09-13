@@ -26,40 +26,76 @@ export async function POST(req: Request) {
 
     await page.goto(url, { waitUntil: "networkidle2", timeout: 60000 });
 
-    const emails: string[] = await page.evaluate(() => {
-      const found: string[] = [];
+    const scraped = await page.evaluate(() => {
+      const result: {
+        emails: string[];
+        phones: string[];
+        location: string | null;
+      } = {
+        emails: [],
+        phones: [],
+        location: null,
+      };
 
+      // ----- EXTRACT EMAILS -----
       document.querySelectorAll("a[href^='mailto:']").forEach((a) => {
         const href = a.getAttribute("href") || "";
         const addr = href.replace(/^mailto:/i, "").split("?")[0].trim();
-        if (addr) found.push(addr);
+        if (addr && !result.emails.includes(addr)) result.emails.push(addr);
       });
 
       const bodyText = document.body?.innerText || "";
       const emailRegex = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
-      const matches = bodyText.match(emailRegex) || [];
-      matches.forEach((m) => {
-        if (!found.includes(m)) found.push(m);
+      (bodyText.match(emailRegex) || []).forEach((m) => {
+        if (!result.emails.includes(m)) result.emails.push(m);
       });
 
-      return found;
+      // ----- EXTRACT PHONE NUMBERS -----
+      const phoneRegex =
+        /(\+?\d{1,3}[\s.-]?)?\(?\d{2,4}\)?[\s.-]?\d{3,4}[\s.-]?\d{3,4}/g;
+      (bodyText.match(phoneRegex) || []).forEach((p) => {
+        if (!result.phones.includes(p)) result.phones.push(p);
+      });
+
+      // ----- EXTRACT LOCATION -----
+      const addressEl = document.querySelector("address");
+      if (addressEl) {
+        result.location = addressEl.textContent?.trim() || null;
+      } else {
+        // fallback: look for city/state/ZIP pattern in text
+        const locationRegex = /\b[A-Z][a-z]+(?:,)?\s+(?:[A-Z][a-z]+)\s+\d{5}(?:-\d{4})?\b/;
+        const bodyText = document.body?.innerText || "";
+        const locMatch = bodyText.match(locationRegex);
+        if (locMatch) {
+          result.location = locMatch[0].trim();
+        }
+      }
+
+
+      return result;
     });
 
     await browser.close();
 
     return new Response(
       JSON.stringify({
-        email: emails.length > 0 ? emails[0] : null,
-        allEmails: emails,
+        email: scraped.emails[0] || null,
+        allEmails: scraped.emails,
+        phone: scraped.phones[0] || null,
+        allPhones: scraped.phones,
+        location: scraped.location,
       }),
       { status: 200, headers: { "Content-Type": "application/json" } }
     );
   } catch (err: any) {
     console.error("Scraper error:", err);
     if (browser) try { await browser.close(); } catch {}
-    return new Response(JSON.stringify({ error: err.message }), { status: 500 });
+    return new Response(JSON.stringify({ error: err.message }), {
+      status: 500,
+    });
   }
 }
+
 
 // // route.ts
 // import puppeteer from "puppeteer";

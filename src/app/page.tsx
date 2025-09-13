@@ -4,8 +4,9 @@ import { useState } from "react";
 
 export default function Home() {
   const [url, setUrl] = useState("");
-  const [result, setResult] = useState<object | null>(null);
+  const [result, setResult] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [copied, setCopied] = useState(false); // modal state
 
   async function handleOnClick() {
     if (!url) return;
@@ -20,13 +21,20 @@ export default function Home() {
         body: JSON.stringify({ url }),
       });
 
-      const data = await res.json();
+      const data = await res.text(); // since we return TSV
       setResult(data);
     } catch (err) {
-      setResult({ error: "Failed to fetch data" });
+      setResult("error: Failed to fetch data");
     } finally {
       setLoading(false);
     }
+  }
+
+  function handleCopy() {
+    if (!result) return;
+    navigator.clipboard.writeText(result);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 3000); // hide after 3 sec
   }
 
   return (
@@ -38,24 +46,38 @@ export default function Home() {
           <input
             type="text"
             value={url}
-            onChange={e => setUrl(e.target.value)}
+            onChange={(e) => setUrl(e.target.value)}
             placeholder="Enter doctor page URL"
             className="input input-bordered w-full mb-4"
           />
 
-          <button className="btn btn-primary mb-6" onClick={handleOnClick} disabled={loading}>
-            {loading ? "Scraping..." : "Scrape Doctor Info"}
+          <button
+            className="btn btn-primary mb-6"
+            onClick={handleOnClick}
+            disabled={loading}
+          >
+            {loading ? "Scraping..." : "Scrape"}
           </button>
 
           {result && (
-            <div className="grid">
+            <div className="grid gap-4">
               <pre className="bg-zinc-200 text-left py-4 px-5 rounded overflow-x-scroll">
-                <code>{JSON.stringify(result, undefined, 2)}</code>
+                <code>{result}</code>
               </pre>
+              <button className="btn btn-secondary" onClick={handleCopy}>
+                Copy
+              </button>
             </div>
           )}
         </div>
       </div>
+
+      {/* ✅ Modal/Toast */}
+      {copied && (
+        <div className="fixed bottom-5 right-5 bg-green-600 text-white px-4 py-2 rounded shadow-lg transition-opacity">
+          Copied to clipboard ✅
+        </div>
+      )}
     </main>
   );
 }
